@@ -31,3 +31,26 @@ export function parseCSV(text) {
   const header = rows.shift();
   return rows.map(r => Object.fromEntries(header.map((h, idx) => [h, r[idx] ?? ''])));
 }
+
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function escapeHTML(s) {
+  return s.replace(/[&<>"']/g, ch => HTML_ESCAPES[ch]);
+}
+
+export function renderProminent(text) {
+  // Match _phrase_ where underscores sit at word boundaries:
+  // start-of-string OR non-word char before the opening _;
+  // non-word char or end-of-string after the closing _.
+  // Phrase content cannot start or end with whitespace.
+  const re = /(^|[^A-Za-z0-9_])_([^_\s][^_]*?[^_\s]|[^_\s])_(?=$|[^A-Za-z0-9_])/g;
+  let out = '';
+  let last = 0;
+  for (const m of text.matchAll(re)) {
+    out += escapeHTML(text.slice(last, m.index));
+    out += escapeHTML(m[1]); // boundary char before the _
+    out += '<em>' + escapeHTML(m[2]) + '</em>';
+    last = m.index + m[0].length;
+  }
+  out += escapeHTML(text.slice(last));
+  return out;
+}
