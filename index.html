@@ -7,6 +7,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#1a1a1a">
   <title>Doc Pierre's Group Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #1a1a1a;
@@ -104,9 +107,10 @@
     .card .face .prompt {
       align-self: center;
       margin: 0;
-      font-size: clamp(20px, 5.2vw, 28px);
-      line-height: 1.25;
-      font-weight: 600;
+      font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+      font-size: clamp(24px, 6.2vw, 33px);
+      line-height: 1.22;
+      font-weight: 400;
       text-align: center;
       color: var(--ink);
     }
@@ -116,11 +120,17 @@
     }
     .card .face .footer {
       align-self: center;
-      font-size: 10px;
-      letter-spacing: 0.18em;
-      opacity: 0.55;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.6;
       color: var(--ink);
     }
+    .card .face .footer svg { width: 19px; height: auto; display: block; }
     /* Stack depth: each layer shifted + slightly scaled */
     .card.layer-0 { transform: translate3d(0, 0px, 0); }
     .card.layer-1 { transform: translate3d(2px, 3px, -2px); }
@@ -161,73 +171,64 @@
     }
     .fab.has-filter .fab-dot { display: block; }
 
-    /* ---- Category picker (clockface) ---- */
+    /* ---- Category picker: a card that swings in on a wheel from the corner ---- */
     .picker-overlay {
       position: fixed; inset: 0;
       z-index: 120;
       display: grid; place-items: center;
       background: rgba(8,10,18,0);
-      perspective: 1000px;
     }
     .picker-overlay[hidden] { display: none; }
-    .picker-title {
-      position: absolute;
-      top: calc(env(safe-area-inset-top, 0px) + 9%);
-      left: 0; right: 0;
-      text-align: center;
-      font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase;
-      color: rgba(255,255,255,0.6);
-      font-weight: 700;
-    }
-    .picker {
+    .picker-card {
       position: relative;
-      width: 260px; height: 260px;
-      transform-style: preserve-3d;
-      -webkit-transform-style: preserve-3d;
-      will-change: transform;
-    }
-    .cat-chip {
-      position: absolute;
-      left: 50%; top: 50%;
-      margin: 0;
-      padding: 12px 18px;
-      border-radius: 999px;
-      border: none;
-      font-family: inherit;
-      font-weight: 800;
-      font-size: 14px;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      white-space: nowrap;
-      color: #fff;
-      box-shadow: 0 8px 22px rgba(0,0,0,0.45);
-      cursor: pointer;
-      will-change: transform, opacity;
-      -webkit-backface-visibility: hidden;
-      backface-visibility: hidden;
-    }
-    .cat-chip.is-active { outline: 3px solid #fff; outline-offset: 2px; }
-    .center-chip {
+      width: min(82vw, 360px);
+      max-height: 86vh;
+      overflow-y: auto;
       background: var(--card-bg);
       color: var(--ink);
-      box-shadow: 0 10px 26px rgba(0,0,0,0.5);
-      z-index: 3;
+      border-radius: 22px;
+      box-shadow: 0 26px 70px rgba(0,0,0,0.6);
+      padding: 24px 20px 14px;
+      transform-origin: 100% 100%; /* pivot at bottom-right (by the FAB) = wheel-in from the corner */
+      will-change: transform, opacity;
     }
-    .picker-cancel {
-      position: fixed;
-      left: 50%;
-      bottom: calc(46px + var(--safe-bottom));
-      transform: translateX(-50%);
-      border: none;
-      background: rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.85);
+    .picker-title {
+      text-align: center;
+      font-size: 12px; letter-spacing: 0.30em; text-transform: uppercase;
+      font-weight: 800;
+      color: rgba(26,37,69,0.5);
+      margin-bottom: 18px;
+    }
+    .picker-list { display: flex; flex-direction: column; gap: 10px; }
+    .cat-row {
+      position: relative;
+      border: none; border-radius: 15px;
+      padding: 16px 20px;
       font-family: inherit;
-      font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
-      padding: 12px 30px; border-radius: 999px;
-      z-index: 121;
+      font-weight: 800; font-size: 16px;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      color: #fff; text-align: left;
       cursor: pointer;
-      -webkit-backdrop-filter: blur(6px);
-      backdrop-filter: blur(6px);
+      box-shadow: 0 5px 14px rgba(0,0,0,0.18);
+      transition: transform .12s ease;
+    }
+    .cat-row:active { transform: scale(0.97); }
+    .cat-row.all { background: #ece2c8; color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(26,37,69,0.18); }
+    .cat-row.is-active { box-shadow: 0 0 0 3px var(--ink), 0 5px 14px rgba(0,0,0,0.2); }
+    .cat-row .check {
+      position: absolute; right: 16px; top: 50%;
+      transform: translateY(-50%) scale(0);
+      font-weight: 900; font-size: 17px;
+      transition: transform .2s cubic-bezier(.2,1.4,.4,1);
+    }
+    .cat-row.is-active .check { transform: translateY(-50%) scale(1); }
+    .picker-cancel {
+      display: block; margin: 16px auto 4px;
+      background: none; border: none;
+      color: rgba(26,37,69,0.55);
+      font-family: inherit;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -299,12 +300,13 @@
       y: -4, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: -1,
     });
 
+    const GROUP_CHAT_MARK = `<svg viewBox="0 0 178 128" fill="none" aria-hidden="true"><g style="mix-blend-mode:multiply"><path d="M14.3068 23.8002C-2.81674 45.6629 1.38031 83.9161 14.3064 94.0521C41.5986 115.453 89.6101 101.963 133.615 99.1689C167.856 96.9946 178.891 55.632 172.732 35.7394C160.684 -3.1727 34.906 -2.50011 14.3068 23.8002Z" fill="#E54447"/><path d="M131.115 93.5019C131.115 93.5019 98.8215 117.227 86.2678 124.778C84.1218 126.069 82.517 124.619 83.3672 122.345L96.9624 85.99" fill="#E54447"/></g></svg>`;
     function paintFace(cardEl, card) {
       const face = cardEl.querySelector('.face');
       face.innerHTML = `
         <div class="badge" data-category="${escapeAttr(card.category)}">${escapeAttr(card.category)}</div>
         <p class="prompt">${renderProminent(card.question)}</p>
-        <div class="footer">DOC PIERRE'S GROUP CHAT</div>
+        <div class="footer">${GROUP_CHAT_MARK}<span>Group Chat</span></div>
       `;
     }
     function escapeAttr(s) {
@@ -503,79 +505,64 @@
     const overlay = document.createElement('div');
     overlay.className = 'picker-overlay';
     overlay.hidden = true;
-    overlay.innerHTML = `<div class="picker-title">Pick a vibe</div><div class="picker"></div><button class="picker-cancel">Cancel</button>`;
+    overlay.innerHTML = `<div class="picker-card"><div class="picker-title">Pick a vibe</div><div class="picker-list"></div><button class="picker-cancel">Cancel</button></div>`;
     document.body.appendChild(overlay);
-    const picker = overlay.querySelector('.picker');
+    const pickerCard = overlay.querySelector('.picker-card');
+    const pickerList = overlay.querySelector('.picker-list');
     const cancelBtn = overlay.querySelector('.picker-cancel');
 
-    // A center "All" chip (clears the filter) plus one chip per category, arranged radially.
-    const chips = [];
-    const centerChip = document.createElement('button');
-    centerChip.className = 'cat-chip center-chip';
-    centerChip.textContent = 'All';
-    centerChip.dataset.cat = '';
-    picker.appendChild(centerChip);
-    chips.push({ el: centerChip, cat: null, x: 0, y: 0 });
-
-    const R = Math.min(118, window.innerWidth * 0.30);
-    CATEGORIES.forEach((cat, i) => {
-      const ang = (-90 + i * (360 / CATEGORIES.length)) * Math.PI / 180;
+    // "All" row (clears the filter) + one tinted row per category.
+    function makeRow(label, cat, isAll) {
       const el = document.createElement('button');
-      el.className = 'cat-chip';
-      el.textContent = cat;
-      el.dataset.cat = cat;
-      el.style.background = CAT_COLORS[cat] || '#555';
-      if (cat === 'Friend Group') el.style.color = '#1a2545';
-      picker.appendChild(el);
-      chips.push({ el, cat, x: Math.cos(ang) * R, y: Math.sin(ang) * R });
-    });
+      el.className = 'cat-row' + (isAll ? ' all' : '');
+      el.dataset.cat = cat || '';
+      el.innerHTML = `<span>${label}</span><span class="check">✓</span>`;
+      if (!isAll) {
+        el.style.background = CAT_COLORS[cat] || '#555';
+        if (cat === 'Friend Group') el.style.color = '#1a2545';
+      }
+      pickerList.appendChild(el);
+    }
+    makeRow('All Categories', null, true);
+    CATEGORIES.forEach(cat => makeRow(cat, cat, false));
+
+    function markActiveRows() {
+      [...pickerList.children].forEach(el =>
+        el.classList.toggle('is-active', (el.dataset.cat || null) === activeCategory));
+    }
+
+    // Wheel-in: the card pivots up out of the bottom-right corner (by the FAB) and springs to centre.
+    const TUCKED = { rotation: 68, scale: 0.45, autoAlpha: 0, xPercent: 26, yPercent: 58 };
+    const SEATED = { rotation: 0, scale: 1, autoAlpha: 1, xPercent: 0, yPercent: 0 };
 
     function openPicker() {
       if (pickerOpen) return;
       pickerOpen = true;
       overlay.hidden = false;
-      chips.forEach(c => c.el.classList.toggle('is-active', (c.cat || null) === activeCategory));
-      gsap.killTweensOf([picker, overlay, cancelBtn, ...chips.map(c => c.el)]);
-      gsap.to(overlay, { backgroundColor: 'rgba(8,10,18,0.62)', duration: 0.35, ease: 'power2.out' });
-      // The clockface sweeps in with a rotational spring...
-      gsap.fromTo(picker, { rotation: -150, scale: 0.2 }, { rotation: 0, scale: 1, duration: 0.62, ease: 'back.out(1.5)' });
-      // ...while each chip flies to its clock position and flips edge -> face (face-first), staggered.
-      chips.forEach((c, i) => {
-        gsap.fromTo(c.el,
-          { x: 0, y: 0, xPercent: -50, yPercent: -50, rotationY: 90, opacity: 0, scale: 0.5 },
-          { x: c.x, y: c.y, rotationY: 0, opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(2)', delay: 0.08 + i * 0.05 });
-      });
-      gsap.fromTo(cancelBtn, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3, delay: 0.32 });
+      markActiveRows();
+      gsap.killTweensOf([overlay, pickerCard]);
+      gsap.to(overlay, { backgroundColor: 'rgba(8,10,18,0.6)', duration: 0.32, ease: 'power2.out' });
+      gsap.fromTo(pickerCard, TUCKED, { ...SEATED, duration: 0.62, ease: 'back.out(1.5)' });
     }
 
     function closePicker() {
       if (!pickerOpen) return;
       pickerOpen = false;
-      gsap.killTweensOf([picker, overlay, cancelBtn, ...chips.map(c => c.el)]);
-      gsap.to(overlay, { backgroundColor: 'rgba(8,10,18,0)', duration: 0.32, ease: 'power2.in' });
-      gsap.to(cancelBtn, { opacity: 0, y: 20, duration: 0.2 });
-      // Spin back out, face away.
-      chips.forEach((c, i) => {
-        gsap.to(c.el, { x: 0, y: 0, rotationY: -90, opacity: 0, scale: 0.5, duration: 0.34, ease: 'back.in(1.6)', delay: i * 0.03 });
-      });
-      gsap.to(picker, {
-        rotation: 150, scale: 0.2, duration: 0.4, ease: 'back.in(1.4)', delay: 0.05,
-        onComplete: () => { overlay.hidden = true; },
-      });
+      gsap.killTweensOf([overlay, pickerCard]);
+      gsap.to(overlay, { backgroundColor: 'rgba(8,10,18,0)', duration: 0.3, ease: 'power2.in' });
+      gsap.to(pickerCard, { ...TUCKED, duration: 0.42, ease: 'back.in(1.5)', onComplete: () => { overlay.hidden = true; } });
     }
 
     fab.addEventListener('click', () => { pickerOpen ? closePicker() : openPicker(); });
     cancelBtn.addEventListener('click', () => closePicker());
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closePicker(); }); // backdrop tap = cancel
-    picker.addEventListener('click', (e) => {
-      const chip = e.target.closest('.cat-chip');
-      if (!chip) return;
-      const cat = chip.dataset.cat ? chip.dataset.cat : null;
+    pickerList.addEventListener('click', (e) => {
+      const row = e.target.closest('.cat-row');
+      if (!row) return;
+      const cat = row.dataset.cat ? row.dataset.cat : null;
       setCategory(cat);
-      gsap.fromTo(chip, { scale: 1 }, {
-        scale: 1.2, duration: 0.12, yoyo: true, repeat: 1, ease: 'power2.out',
-        onComplete: () => closePicker(),
-      });
+      markActiveRows();
+      gsap.fromTo(row, { scale: 1 }, { scale: 1.05, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.out', onComplete: () => closePicker() });
     });
 
     updateFab();
