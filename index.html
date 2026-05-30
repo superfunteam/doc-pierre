@@ -117,6 +117,8 @@
     .card.layer-3 { transform: translate3d(6px, 9px, -6px); }
     .card.layer-4 { transform: translate3d(8px, 12px, -8px); }
     .card.layer-5 { transform: translate3d(10px, 15px, -10px); opacity: 0.95; }
+    .card.revealed { touch-action: none; cursor: grab; }
+    .card.revealed:active { cursor: grabbing; }
   </style>
 </head>
 <body>
@@ -192,7 +194,7 @@
       const next = deckState.next();
       paintFace(card, next);
 
-      const tl = gsap.timeline({ onComplete: () => { isAnimating = false; revealed = card; } });
+      const tl = gsap.timeline({ onComplete: () => { isAnimating = false; revealed = card; card.classList.add('revealed'); } });
       tl.to(card, { y: -40, z: 40, scale: 1.05, duration: 0.25, ease: 'power2.out' }, 0);
       tl.to(card, { rotationY: 180, duration: 0.6, ease: 'power2.inOut' }, 0.05);
       tl.to(card, { y: 0, scale: 1.0, duration: 0.25, ease: 'power2.out' }, 0.5);
@@ -211,6 +213,71 @@
       if (!card.classList.contains('layer-0')) return;
       flipTopCard();
     });
+
+    let drag = null;
+
+    deck.addEventListener('pointerdown', (e) => {
+      if (!revealed) return;
+      const card = e.target.closest('.card.revealed');
+      if (!card) return;
+      card.setPointerCapture(e.pointerId);
+      drag = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        lastT: performance.now(),
+        vx: 0, vy: 0,
+      };
+      gsap.killTweensOf(card);
+    });
+
+    deck.addEventListener('pointermove', (e) => {
+      if (!drag || e.pointerId !== drag.pointerId || !revealed) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      const now = performance.now();
+      const dt = Math.max(1, now - drag.lastT);
+      drag.vx = (e.clientX - drag.lastX) / dt;
+      drag.vy = (e.clientY - drag.lastY) / dt;
+      drag.lastX = e.clientX; drag.lastY = e.clientY; drag.lastT = now;
+      const rot = Math.max(-20, Math.min(20, dx * 0.06));
+      gsap.set(revealed, { x: dx, y: dy, rotation: rot, rotationY: 180 });
+    });
+
+    function endDrag(e) {
+      if (!drag || (e && e.pointerId !== drag.pointerId) || !revealed) return;
+      const dx = drag.lastX - drag.startX;
+      const dy = drag.lastY - drag.startY;
+      const speed = Math.hypot(drag.vx, drag.vy); // px/ms
+      const distance = Math.hypot(dx, dy);
+      const threshold = Math.min(window.innerWidth, window.innerHeight) * 0.30;
+      const fling = speed > 0.6;
+
+      const card = revealed;
+      drag = null;
+
+      if (distance > threshold || fling) {
+        // Dismiss in the direction of travel.
+        const angle = Math.atan2(dy, dx);
+        const flyDist = Math.max(window.innerWidth, window.innerHeight) * 1.4;
+        const tx = Math.cos(angle) * flyDist;
+        const ty = Math.sin(angle) * flyDist;
+        const spin = (dx >= 0 ? 1 : -1) * (180 + Math.random() * 90);
+        gsap.to(card, {
+          x: tx, y: ty, rotation: spin, duration: 0.45, ease: 'power2.in',
+          onComplete: () => { card.remove(); revealed = null; },
+        });
+      } else {
+        gsap.to(card, {
+          x: 0, y: 0, rotation: 0, duration: 0.45, ease: 'elastic.out(1, 0.6)',
+        });
+      }
+    }
+
+    deck.addEventListener('pointerup', endDrag);
+    deck.addEventListener('pointercancel', endDrag);
   </script>
 </body>
 </html>
