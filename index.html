@@ -294,8 +294,19 @@
       sounds.push(a);
     }
     let lastSoundIdx = -1;
+    let lastSoundT = 0;
+    function stopAllSounds() {
+      // Cut any clip still playing so draws never stack/overlap, even drawing fast.
+      for (const s of sounds) {
+        if (!s.paused) { try { s.pause(); s.currentTime = 0; } catch {} }
+      }
+    }
     function playDrawSound() {
       if (!sounds.length) return;
+      const now = performance.now();
+      if (now - lastSoundT < 90) return; // debounce machine-gun re-triggers
+      lastSoundT = now;
+      stopAllSounds();
       let idx = Math.floor(Math.random() * sounds.length);
       if (sounds.length > 1 && idx === lastSoundIdx) {
         idx = (idx + 1) % sounds.length;
@@ -303,9 +314,7 @@
       lastSoundIdx = idx;
       const a = sounds[idx];
       try {
-        a.pause();
         a.currentTime = 0;
-        a.volume = 1.0;
         const p = a.play();
         if (p && typeof p.catch === 'function') p.catch(() => {});
       } catch {}
