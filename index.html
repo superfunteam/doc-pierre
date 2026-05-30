@@ -138,8 +138,8 @@
       align-self: center;
       margin: 0;
       font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
-      font-size: clamp(24px, 6.2vw, 33px);
-      line-height: 1.22;
+      font-size: clamp(27px, 7vw, 38px);
+      line-height: 1.2;
       font-weight: 400;
       text-align: center;
       color: var(--ink);
@@ -459,6 +459,15 @@
         const spin = (dx >= 0 ? 1 : -1) * (180 + Math.random() * 90);
         gsap.to(card, {
           x: tx, y: ty, rotation: spin, duration: 0.45, ease: 'power2.in',
+          onComplete: () => { card.remove(); revealed = null; },
+        });
+      } else if (distance < 12) {
+        // Negligible movement = a tap. Some players won't discover the swipe, so a tap
+        // dismisses too — animated as an automatic swipe-out to the side.
+        const flyDist = Math.max(window.innerWidth, window.innerHeight) * 1.4;
+        gsap.to(card, {
+          x: flyDist, y: flyDist * (0.05 + Math.random() * 0.22), rotation: 200 + Math.random() * 80,
+          duration: 0.5, ease: 'power2.in',
           onComplete: () => { card.remove(); revealed = null; },
         });
       } else {
