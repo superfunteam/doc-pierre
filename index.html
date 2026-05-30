@@ -79,6 +79,37 @@
       padding: 24px 22px;
       color: var(--ink);
     }
+    .card .face .badge {
+      align-self: start;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #2D4FA0;
+      color: #fff;
+    }
+    .card .face .prompt {
+      align-self: center;
+      margin: 0;
+      font-size: clamp(20px, 5.2vw, 28px);
+      line-height: 1.25;
+      font-weight: 600;
+      text-align: center;
+      color: var(--ink);
+    }
+    .card .face .prompt em {
+      font-style: italic;
+      color: #E94B3C;
+    }
+    .card .face .footer {
+      align-self: center;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      opacity: 0.55;
+      color: var(--ink);
+    }
     /* Stack depth: each layer shifted + slightly scaled */
     .card.layer-0 { transform: translate3d(0, 0px, 0); }
     .card.layer-1 { transform: translate3d(2px, 3px, -2px); }
@@ -92,6 +123,11 @@
   <div id="stage"></div>
   <script type="module">
     import gsap from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
+    import { parseCSV, renderProminent, Deck } from './deck.js';
+
+    const csvText = await fetch('questions.csv').then(r => r.text());
+    const rows = parseCSV(csvText);
+    const deckState = new Deck(rows.map(r => ({ category: r.Category, question: r.Prompt })));
 
     const stage = document.getElementById('stage');
     const deck = document.createElement('div');
@@ -110,6 +146,70 @@
     gsap.set(topCard, { x: 0, y: 0, z: 0 });
     gsap.to(topCard, {
       y: -4, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: -1,
+    });
+
+    function paintFace(cardEl, card) {
+      const face = cardEl.querySelector('.face');
+      face.innerHTML = `
+        <div class="badge" data-category="${escapeAttr(card.category)}">${escapeAttr(card.category)}</div>
+        <p class="prompt">${renderProminent(card.question)}</p>
+        <div class="footer">DOC PIERRE'S GROUP CHAT</div>
+      `;
+    }
+    function escapeAttr(s) {
+      return s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+
+    let isAnimating = false;
+    let revealed = null; // current face-up card element when one exists
+
+    function promoteStack() {
+      // Every card moves up one layer. Layer 0 (currently flying off) is being handled separately.
+      const cards = [...deck.querySelectorAll('.card')];
+      cards.forEach(c => {
+        const m = c.className.match(/layer-(\d+)/);
+        if (!m) return;
+        const n = parseInt(m[1], 10);
+        if (n === 0) return;
+        c.classList.replace(`layer-${n}`, `layer-${n - 1}`);
+      });
+      // Add a new bottom card to keep the stack at 6.
+      const tail = document.createElement('div');
+      tail.className = `card layer-${STACK_DEPTH - 1}`;
+      tail.innerHTML = `<div class="back"></div><div class="face"></div>`;
+      deck.insertBefore(tail, deck.firstChild);
+    }
+
+    function flipTopCard() {
+      if (isAnimating || revealed) return;
+      isAnimating = true;
+
+      const card = deck.querySelector('.card.layer-0');
+      gsap.killTweensOf(card); // stop idle breath
+      card.classList.remove('layer-0');
+      card.style.zIndex = 100;
+
+      const next = deckState.next();
+      paintFace(card, next);
+
+      const tl = gsap.timeline({ onComplete: () => { isAnimating = false; revealed = card; } });
+      tl.to(card, { y: -40, z: 40, scale: 1.05, duration: 0.25, ease: 'power2.out' }, 0);
+      tl.to(card, { rotationY: 180, duration: 0.6, ease: 'power2.inOut' }, 0.05);
+      tl.to(card, { y: 0, scale: 1.0, duration: 0.25, ease: 'power2.out' }, 0.5);
+
+      promoteStack();
+      // Restart breath on the new top card.
+      const newTop = deck.querySelector('.card.layer-0');
+      gsap.set(newTop, { x: 0, y: 0, z: 0 });
+      gsap.to(newTop, { y: -4, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+    }
+
+    deck.addEventListener('pointerdown', (e) => {
+      // Only the topmost (z-elevated or layer-0) card triggers.
+      const card = e.target.closest('.card');
+      if (!card) return;
+      if (!card.classList.contains('layer-0')) return;
+      flipTopCard();
     });
   </script>
 </body>
