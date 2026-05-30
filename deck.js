@@ -54,3 +54,37 @@ export function renderProminent(text) {
   out += escapeHTML(text.slice(last));
   return out;
 }
+
+export function shuffle(array, rng = Math.random) {
+  const a = array.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export class Deck {
+  constructor(cards) {
+    if (!cards.length) throw new Error('Deck requires at least one card');
+    this.cards = cards;
+    this.order = shuffle(cards.map((_, i) => i));
+    this.pos = 0;
+    this.lastShown = -1;
+  }
+
+  next() {
+    if (this.pos >= this.order.length) this._reshuffle();
+    const idx = this.order[this.pos++];
+    this.lastShown = idx;
+    return this.cards[idx];
+  }
+
+  _reshuffle() {
+    this.order = shuffle(this.cards.map((_, i) => i));
+    if (this.order.length > 1 && this.order[0] === this.lastShown) {
+      [this.order[0], this.order[1]] = [this.order[1], this.order[0]];
+    }
+    this.pos = 0;
+  }
+}

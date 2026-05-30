@@ -57,3 +57,48 @@ test('renderProminent: escapes inside italics too', () => {
     '<em>&lt;script&gt;</em>'
   );
 });
+
+import { Deck } from '../deck.js';
+
+// Deterministic RNG for tests: stub Math.random.
+function withRng(values, fn) {
+  const original = Math.random;
+  let i = 0;
+  Math.random = () => values[i++ % values.length];
+  try { return fn(); } finally { Math.random = original; }
+}
+
+test('Deck.next: returns each card once before repeating', () => {
+  const cards = [{ id: 0 }, { id: 1 }, { id: 2 }];
+  const d = new Deck(cards);
+  const seen = new Set();
+  for (let i = 0; i < 3; i++) seen.add(d.next().id);
+  assert.equal(seen.size, 3);
+});
+
+test('Deck.next: reshuffles after exhausting the order', () => {
+  const cards = [{ id: 0 }, { id: 1 }];
+  const d = new Deck(cards);
+  d.next(); d.next();
+  const c = d.next();
+  assert.ok(c && typeof c.id === 'number');
+});
+
+test('Deck.next: reshuffle never makes the just-shown card the next one', () => {
+  // Force shuffle to produce a known order so we can verify the swap kicks in.
+  withRng([0, 0, 0, 0, 0, 0, 0, 0], () => {
+    const cards = [{ id: 0 }, { id: 1 }, { id: 2 }];
+    const d = new Deck(cards);
+    const first = d.next();
+    const second = d.next();
+    const third = d.next();
+    const fourth = d.next(); // post-reshuffle
+    assert.notEqual(fourth.id, third.id);
+  });
+});
+
+test('Deck.next: with a single-card deck, repeats are unavoidable but no crash', () => {
+  const d = new Deck([{ id: 0 }]);
+  assert.equal(d.next().id, 0);
+  assert.equal(d.next().id, 0);
+});
