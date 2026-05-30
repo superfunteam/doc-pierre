@@ -1,0 +1,21 @@
+# Doc Pierre's Group Chat — static site, no framework build.
+# The only "build" step rewrites the placeholder social/canonical URL to Netlify's
+# real site URL ($URL) at deploy time, so Open Graph / Twitter unfurls and the
+# canonical tag always point at the live domain (custom domains included).
+# If $URL is unset (e.g. local `netlify dev`), it falls back to the same placeholder,
+# so the substitution is a harmless no-op.
+
+[build]
+  publish = "."
+  command = 'sed -i "s|https://doc-pierre.netlify.app|${URL:-https://doc-pierre.netlify.app}|g" index.html'
+
+# Long-cache the static assets (fonts/images/sounds); HTML stays revalidated.
+[[headers]]
+  for = "/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/sounds/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
