@@ -86,6 +86,7 @@
     }
     .card .face .badge {
       align-self: start;
+      justify-self: start;
       font-size: 13px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -129,6 +130,105 @@
     .card.layer-5 { transform: translate3d(10px, 15px, -10px); opacity: 0.95; }
     .card.revealed { touch-action: none; cursor: grab; }
     .card.revealed:active { cursor: grabbing; }
+
+    /* ---- Category FAB ---- */
+    .fab {
+      position: fixed;
+      right: calc(18px + env(safe-area-inset-right, 0px));
+      bottom: calc(18px + var(--safe-bottom));
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.85);
+      opacity: 0.30;
+      display: grid; place-items: center;
+      z-index: 60;
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+      transition: opacity .25s ease, transform .18s ease, border-color .25s ease;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .fab:active { transform: scale(0.92); opacity: 0.95; }
+    .fab.has-filter { opacity: 0.92; }
+    .fab svg { width: 23px; height: 23px; display: block; }
+    .fab .fab-dot {
+      position: absolute; top: -1px; right: -1px;
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid var(--bg);
+      display: none;
+    }
+    .fab.has-filter .fab-dot { display: block; }
+
+    /* ---- Category picker (clockface) ---- */
+    .picker-overlay {
+      position: fixed; inset: 0;
+      z-index: 120;
+      display: grid; place-items: center;
+      background: rgba(8,10,18,0);
+      perspective: 1000px;
+    }
+    .picker-overlay[hidden] { display: none; }
+    .picker-title {
+      position: absolute;
+      top: calc(env(safe-area-inset-top, 0px) + 9%);
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 12px; letter-spacing: 0.34em; text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      font-weight: 700;
+    }
+    .picker {
+      position: relative;
+      width: 260px; height: 260px;
+      transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+      will-change: transform;
+    }
+    .cat-chip {
+      position: absolute;
+      left: 50%; top: 50%;
+      margin: 0;
+      padding: 12px 18px;
+      border-radius: 999px;
+      border: none;
+      font-family: inherit;
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      color: #fff;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.45);
+      cursor: pointer;
+      will-change: transform, opacity;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+    }
+    .cat-chip.is-active { outline: 3px solid #fff; outline-offset: 2px; }
+    .center-chip {
+      background: var(--card-bg);
+      color: var(--ink);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.5);
+      z-index: 3;
+    }
+    .picker-cancel {
+      position: fixed;
+      left: 50%;
+      bottom: calc(46px + var(--safe-bottom));
+      transform: translateX(-50%);
+      border: none;
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.85);
+      font-family: inherit;
+      font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
+      padding: 12px 30px; border-radius: 999px;
+      z-index: 121;
+      cursor: pointer;
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+    }
   </style>
 </head>
 <body>
@@ -139,7 +239,20 @@
 
     const csvText = await fetch('questions.csv').then(r => r.text());
     const rows = parseCSV(csvText);
-    const deckState = new Deck(rows.map(r => ({ category: r.Category, question: r.Prompt })));
+    const allCards = rows.map(r => ({ category: r.Category, question: r.Prompt }));
+    const CATEGORIES = [...new Set(allCards.map(c => c.category))];
+    const CAT_COLORS = {
+      'Work': '#E94B3C', 'Family': '#2D4FA0', 'Friend Group': '#F4C84A',
+      'Travel': '#3CA39E', 'Just For Fun': '#E66A9E',
+    };
+    let activeCategory = null;            // null = draw from all categories
+    let deckState = new Deck(allCards);
+    function setCategory(cat) {
+      activeCategory = cat;
+      const pool = cat ? allCards.filter(c => c.category === cat) : allCards;
+      deckState = new Deck(pool);
+      updateFab();
+    }
 
     const SOUND_COUNT = 11;
     const sounds = [];
@@ -200,6 +313,7 @@
 
     let isAnimating = false;
     let revealed = null; // current face-up card element when one exists
+    let pickerOpen = false; // category picker overlay is open
 
     function promoteStack() {
       // Every card moves up one layer. Layer 0 (currently flying off) is being handled separately.
@@ -219,7 +333,7 @@
     }
 
     function flipTopCard() {
-      if (isAnimating || revealed) return;
+      if (isAnimating || revealed || pickerOpen) return;
       isAnimating = true;
       playDrawSound();
 
@@ -232,9 +346,10 @@
       paintFace(card, next);
 
       const tl = gsap.timeline({ onComplete: () => { isAnimating = false; revealed = card; card.classList.add('revealed'); } });
-      tl.to(card, { y: -40, z: 40, scale: 1.05, duration: 0.25, ease: 'power2.out' }, 0);
-      tl.to(card, { rotationY: 180, duration: 0.6, ease: 'power2.inOut' }, 0.05);
-      tl.to(card, { y: 0, scale: 1.0, duration: 0.25, ease: 'power2.out' }, 0.5);
+      // Snappier, bigger pop: launch high+close fast, whip the flip, land with a spring overshoot.
+      tl.to(card, { y: -72, z: 90, scale: 1.18, duration: 0.20, ease: 'power3.out' }, 0);
+      tl.to(card, { rotationY: 180, duration: 0.42, ease: 'power3.inOut' }, 0.03);
+      tl.to(card, { y: 0, z: 40, scale: 1.0, duration: 0.38, ease: 'back.out(2)' }, 0.40);
 
       promoteStack();
       // Restart breath on the new top card.
@@ -329,6 +444,7 @@
 
     let lastShake = 0;
     window.addEventListener('devicemotion', (e) => {
+      if (pickerOpen) return;
       const a = e.accelerationIncludingGravity || e.acceleration;
       if (!a) return;
       const mag = Math.hypot(a.x || 0, a.y || 0, a.z || 0);
@@ -351,6 +467,111 @@
         }
       }
     });
+
+    /* ---------- Category FAB + clockface picker ---------- */
+    const fab = document.createElement('button');
+    fab.className = 'fab';
+    fab.setAttribute('aria-label', 'Choose category');
+    fab.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/>
+        <rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>
+      </svg>
+      <span class="fab-dot"></span>`;
+    document.body.appendChild(fab);
+
+    function updateFab() {
+      const dot = fab.querySelector('.fab-dot');
+      if (activeCategory) {
+        fab.classList.add('has-filter');
+        const c = CAT_COLORS[activeCategory] || '#fff';
+        fab.style.borderColor = c;
+        dot.style.background = c;
+      } else {
+        fab.classList.remove('has-filter');
+        fab.style.borderColor = '';
+      }
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'picker-overlay';
+    overlay.hidden = true;
+    overlay.innerHTML = `<div class="picker-title">Pick a vibe</div><div class="picker"></div><button class="picker-cancel">Cancel</button>`;
+    document.body.appendChild(overlay);
+    const picker = overlay.querySelector('.picker');
+    const cancelBtn = overlay.querySelector('.picker-cancel');
+
+    // A center "All" chip (clears the filter) plus one chip per category, arranged radially.
+    const chips = [];
+    const centerChip = document.createElement('button');
+    centerChip.className = 'cat-chip center-chip';
+    centerChip.textContent = 'All';
+    centerChip.dataset.cat = '';
+    picker.appendChild(centerChip);
+    chips.push({ el: centerChip, cat: null, x: 0, y: 0 });
+
+    const R = Math.min(118, window.innerWidth * 0.30);
+    CATEGORIES.forEach((cat, i) => {
+      const ang = (-90 + i * (360 / CATEGORIES.length)) * Math.PI / 180;
+      const el = document.createElement('button');
+      el.className = 'cat-chip';
+      el.textContent = cat;
+      el.dataset.cat = cat;
+      el.style.background = CAT_COLORS[cat] || '#555';
+      if (cat === 'Friend Group') el.style.color = '#1a2545';
+      picker.appendChild(el);
+      chips.push({ el, cat, x: Math.cos(ang) * R, y: Math.sin(ang) * R });
+    });
+
+    function openPicker() {
+      if (pickerOpen) return;
+      pickerOpen = true;
+      overlay.hidden = false;
+      chips.forEach(c => c.el.classList.toggle('is-active', (c.cat || null) === activeCategory));
+      gsap.killTweensOf([picker, overlay, cancelBtn, ...chips.map(c => c.el)]);
+      gsap.to(overlay, { backgroundColor: 'rgba(8,10,18,0.62)', duration: 0.35, ease: 'power2.out' });
+      // The clockface sweeps in with a rotational spring...
+      gsap.fromTo(picker, { rotation: -150, scale: 0.2 }, { rotation: 0, scale: 1, duration: 0.62, ease: 'back.out(1.5)' });
+      // ...while each chip flies to its clock position and flips edge -> face (face-first), staggered.
+      chips.forEach((c, i) => {
+        gsap.fromTo(c.el,
+          { x: 0, y: 0, xPercent: -50, yPercent: -50, rotationY: 90, opacity: 0, scale: 0.5 },
+          { x: c.x, y: c.y, rotationY: 0, opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(2)', delay: 0.08 + i * 0.05 });
+      });
+      gsap.fromTo(cancelBtn, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3, delay: 0.32 });
+    }
+
+    function closePicker() {
+      if (!pickerOpen) return;
+      pickerOpen = false;
+      gsap.killTweensOf([picker, overlay, cancelBtn, ...chips.map(c => c.el)]);
+      gsap.to(overlay, { backgroundColor: 'rgba(8,10,18,0)', duration: 0.32, ease: 'power2.in' });
+      gsap.to(cancelBtn, { opacity: 0, y: 20, duration: 0.2 });
+      // Spin back out, face away.
+      chips.forEach((c, i) => {
+        gsap.to(c.el, { x: 0, y: 0, rotationY: -90, opacity: 0, scale: 0.5, duration: 0.34, ease: 'back.in(1.6)', delay: i * 0.03 });
+      });
+      gsap.to(picker, {
+        rotation: 150, scale: 0.2, duration: 0.4, ease: 'back.in(1.4)', delay: 0.05,
+        onComplete: () => { overlay.hidden = true; },
+      });
+    }
+
+    fab.addEventListener('click', () => { pickerOpen ? closePicker() : openPicker(); });
+    cancelBtn.addEventListener('click', () => closePicker());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closePicker(); }); // backdrop tap = cancel
+    picker.addEventListener('click', (e) => {
+      const chip = e.target.closest('.cat-chip');
+      if (!chip) return;
+      const cat = chip.dataset.cat ? chip.dataset.cat : null;
+      setCategory(cat);
+      gsap.fromTo(chip, { scale: 1 }, {
+        scale: 1.2, duration: 0.12, yoyo: true, repeat: 1, ease: 'power2.out',
+        onComplete: () => closePicker(),
+      });
+    });
+
+    updateFab();
   </script>
 </body>
 </html>
