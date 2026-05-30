@@ -11,15 +11,15 @@
 
   <title>Doc Pierre's Group Chat — Icebreaker Question Card Game</title>
   <meta name="description" content="A party game of cheeky icebreaker questions. Tap the deck, flip a card, and get the table talking — Work, Family, Friends, Travel, and Just for Fun.">
-  <link rel="canonical" href="https://doc-pierre.netlify.app/">
+  <link rel="canonical" href="https://doc-pierre.superfun.games/">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Doc Pierre's Group Chat">
   <meta property="og:title" content="Doc Pierre's Group Chat">
   <meta property="og:description" content="Tap the deck, flip a card, get the table talking. A party game of cheeky icebreaker questions.">
-  <meta property="og:url" content="https://doc-pierre.netlify.app/">
-  <meta property="og:image" content="https://doc-pierre.netlify.app/unfurl.webp">
+  <meta property="og:url" content="https://doc-pierre.superfun.games/">
+  <meta property="og:image" content="https://doc-pierre.superfun.games/unfurl.webp">
   <meta property="og:image:type" content="image/webp">
   <meta property="og:image:width" content="1731">
   <meta property="og:image:height" content="909">
@@ -29,7 +29,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Doc Pierre's Group Chat">
   <meta name="twitter:description" content="Tap the deck, flip a card, get the table talking. A party game of cheeky icebreaker questions.">
-  <meta name="twitter:image" content="https://doc-pierre.netlify.app/unfurl.webp">
+  <meta name="twitter:image" content="https://doc-pierre.superfun.games/unfurl.webp">
   <meta name="twitter:image:alt" content="Doc Pierre's Group Chat — a fan of colorful icebreaker question cards">
 
   <!-- Icons / PWA -->
@@ -106,8 +106,23 @@
       -webkit-backface-visibility: hidden;
     }
     .card .back {
-      background: var(--card-bg) center/cover no-repeat url('card-back.png');
+      background: var(--card-bg);
       transform: rotateY(0deg);
+    }
+    /* The back artwork is a real <img>, not a CSS background-image. iOS/WebKit
+       drops background-image on a backface-visibility:hidden layer inside a
+       preserve-3d parent, so the back rendered blank cream on iPhone/iPad.
+       An <img> composites reliably and still gets culled with its (flattened)
+       .back parent when the card flips. */
+    .card .back-art {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: inherit;
+      display: block;
+      pointer-events: none;
     }
     .card .face {
       background: var(--card-bg);
@@ -329,7 +344,7 @@
     for (let i = STACK_DEPTH - 1; i >= 0; i--) {
       const card = document.createElement('div');
       card.className = `card layer-${i}`;
-      card.innerHTML = `<div class="back"></div><div class="face"></div>`;
+      card.innerHTML = `<div class="back"><img class="back-art" src="card-back.png" alt="" width="1024" height="1536"></div><div class="face"></div>`;
       deck.appendChild(card);
     }
 
@@ -369,7 +384,7 @@
       // Add a new bottom card to keep the stack at 6.
       const tail = document.createElement('div');
       tail.className = `card layer-${STACK_DEPTH - 1}`;
-      tail.innerHTML = `<div class="back"></div><div class="face"></div>`;
+      tail.innerHTML = `<div class="back"><img class="back-art" src="card-back.png" alt="" width="1024" height="1536"></div><div class="face"></div>`;
       deck.insertBefore(tail, deck.firstChild);
     }
 
