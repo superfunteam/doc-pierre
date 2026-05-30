@@ -1,15 +1,23 @@
 # Doc Pierre's Group Chat — static site, no framework build.
-# The only "build" step rewrites the placeholder social/canonical URL to Netlify's
-# real site URL ($URL) at deploy time, so Open Graph / Twitter unfurls and the
-# canonical tag always point at the live domain (custom domains included).
-# If $URL is unset (e.g. local `netlify dev`), it falls back to the same placeholder,
-# so the substitution is a harmless no-op.
+#
+# Social/canonical URLs are hardcoded to the production custom domain
+# (https://doc-pierre.superfun.games) in index.html. We deliberately do NOT
+# rewrite them from $URL at deploy time: $URL is whichever alias served the
+# build (it was resolving to the *.netlify.app subdomain), which made Open
+# Graph / Twitter unfurls and the canonical tag point at the wrong domain.
+# A fixed custom domain means the unfurl should always be that domain.
 
 [build]
   publish = "."
-  command = 'sed -i "s|https://doc-pierre.netlify.app|${URL:-https://doc-pierre.netlify.app}|g" index.html'
 
-# Long-cache the static assets (fonts/images/sounds); HTML stays revalidated.
+# Long-cache the static assets (images/sounds); HTML stays revalidated so
+# deploys go live immediately. The card back is a ~2 MB PNG loaded on every
+# visit, so caching it matters most on mobile networks.
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
 [[headers]]
   for = "/*.webp"
   [headers.values]
