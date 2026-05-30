@@ -47,6 +47,7 @@
       width: min(75vw, 360px);
       aspect-ratio: 2.5 / 3.5;
       transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
     }
     .card {
       position: absolute;
@@ -55,15 +56,19 @@
       background: var(--card-bg);
       box-shadow: 0 8px 24px var(--shadow);
       transform-style: preserve-3d;
-      backface-visibility: hidden;
+      -webkit-transform-style: preserve-3d;
       will-change: transform;
-      overflow: hidden;
     }
+    /* The two faces are the leaf nodes: they own the backface-hiding and the
+       content clipping. The rotating .card MUST stay a clean preserve-3d shell —
+       any overflow!=visible or backface-visibility on it flattens/culls the 3D
+       context and the front face never presents. */
     .card .face,
     .card .back {
       position: absolute;
       inset: 0;
       border-radius: inherit;
+      overflow: hidden;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
     }
