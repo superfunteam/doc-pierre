@@ -346,10 +346,17 @@
       paintFace(card, next);
 
       const tl = gsap.timeline({ onComplete: () => { isAnimating = false; revealed = card; card.classList.add('revealed'); } });
-      // Snappier, bigger pop: launch high+close fast, whip the flip, land with a spring overshoot.
-      tl.to(card, { y: -72, z: 90, scale: 1.18, duration: 0.20, ease: 'power3.out' }, 0);
-      tl.to(card, { rotationY: 180, duration: 0.42, ease: 'power3.inOut' }, 0.03);
-      tl.to(card, { y: 0, z: 40, scale: 1.0, duration: 0.38, ease: 'back.out(2)' }, 0.40);
+      // One continuous motion: the card rotates the WHOLE time it rises and settles.
+      // The lift is a single up-and-back arc whose apex (biggest, ~edge-on) lands on
+      // the flip's midpoint, so the spin and the pop read as one gesture, not three.
+      const FLIP = 0.7;
+      tl.to(card, { rotationY: 180, duration: FLIP, ease: 'power2.inOut' }, 0);
+      tl.to(card, {
+        keyframes: [
+          { y: -72, z: 90, scale: 1.18, duration: FLIP / 2, ease: 'power2.out' },
+          { y: 0, z: 40, scale: 1.0, duration: FLIP / 2, ease: 'power2.inOut' },
+        ],
+      }, 0);
 
       promoteStack();
       // Restart breath on the new top card.
