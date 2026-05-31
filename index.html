@@ -286,16 +286,23 @@
     const csvText = await fetch('questions.csv').then(r => r.text());
     const rows = parseCSV(csvText);
     const allCards = rows.map(r => ({ category: r.Category, question: r.Prompt }));
-    const CATEGORIES = [...new Set(allCards.map(c => c.category))];
+    // Spicy is an opt-in-only category: its questions never appear in the
+    // general mix. You only see them by manually picking "Spicy" from the picker.
+    const SPICY = 'Spicy';
+    const generalCards = allCards.filter(c => c.category !== SPICY);
+    // Order the picker with every regular category first and Spicy pinned last.
+    const CATEGORIES = [...new Set(generalCards.map(c => c.category))];
+    if (allCards.some(c => c.category === SPICY)) CATEGORIES.push(SPICY);
     const CAT_COLORS = {
       'Work': '#E94B3C', 'Family': '#2D4FA0', 'Friend Group': '#F4C84A',
-      'Travel': '#3CA39E', 'Just For Fun': '#E66A9E',
+      'Travel': '#3CA39E', 'Just For Fun': '#E66A9E', 'Spicy': '#C2185B',
     };
-    let activeCategory = null;            // null = draw from all categories
-    let deckState = new Deck(allCards);
+    let activeCategory = null;            // null = draw from all NON-spicy categories
+    let deckState = new Deck(generalCards);
     function setCategory(cat) {
       activeCategory = cat;
-      const pool = cat ? allCards.filter(c => c.category === cat) : allCards;
+      // null = the general mix (Spicy excluded); a category = only that category.
+      const pool = cat ? allCards.filter(c => c.category === cat) : generalCards;
       deckState = new Deck(pool);
       updateFab();
     }
@@ -587,7 +594,8 @@
       pickerList.appendChild(el);
     }
     makeRow('All Categories', null, true);
-    CATEGORIES.forEach(cat => makeRow(cat, cat, false));
+    // Spicy gets a chili so it reads as the "extra" opt-in category.
+    CATEGORIES.forEach(cat => makeRow(cat === SPICY ? `${cat} 🌶️` : cat, cat, false));
 
     function markActiveRows() {
       [...pickerList.children].forEach(el =>
