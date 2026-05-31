@@ -13,6 +13,11 @@
   <meta name="description" content="A party game of cheeky icebreaker questions. Tap the deck, flip a card, and get the table talking — Work, Family, Friends, Travel, and Just for Fun.">
   <link rel="canonical" href="https://doc-pierre.superfun.games/">
 
+  <!-- Google Material Symbols (rounded) for category icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Doc Pierre's Group Chat">
@@ -247,8 +252,9 @@
     .picker-list { display: flex; flex-direction: column; gap: 10px; }
     .cat-row {
       position: relative;
+      display: flex; align-items: center; gap: 13px;
       border: none; border-radius: 15px;
-      padding: 16px 20px;
+      padding: 13px 20px 13px 13px;
       font-family: inherit;
       font-weight: 800; font-size: 16px;
       letter-spacing: 0.04em; text-transform: uppercase;
@@ -257,8 +263,24 @@
       box-shadow: 0 5px 14px rgba(0,0,0,0.18);
       transition: transform .12s ease;
     }
+    .cat-row .cat-label { flex: 1; }
+    /* Rounded-rectangle badge holding the category's Material Symbol icon. */
+    .cat-icon {
+      flex: none;
+      display: grid; place-items: center;
+      width: 38px; height: 38px;
+      border-radius: 11px;
+      background: rgba(255,255,255,0.22);
+    }
+    .cat-icon .material-symbols-rounded {
+      font-size: 22px; line-height: 1;
+      font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
+    }
     .cat-row:active { transform: scale(0.97); }
     .cat-row.all { background: #ece2c8; color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(26,37,69,0.18); }
+    .cat-row.all .cat-icon { background: rgba(26,37,69,0.10); }
+    /* Friend Group is the one light (yellow) tinted row, so darken its badge. */
+    .cat-row[data-cat="Friend Group"] .cat-icon { background: rgba(26,37,69,0.14); }
     .cat-row.is-active { box-shadow: 0 0 0 3px var(--ink), 0 5px 14px rgba(0,0,0,0.2); }
     .cat-row .check {
       position: absolute; right: 16px; top: 50%;
@@ -295,7 +317,14 @@
     if (allCards.some(c => c.category === SPICY)) CATEGORIES.push(SPICY);
     const CAT_COLORS = {
       'Work': '#E94B3C', 'Family': '#2D4FA0', 'Friend Group': '#F4C84A',
-      'Travel': '#3CA39E', 'Just For Fun': '#E66A9E', 'Spicy': '#C2185B',
+      'Travel': '#3CA39E', 'Just For Fun': '#E66A9E', 'College Days': '#7B4BC4',
+      'Spicy': '#C2185B',
+    };
+    // Google Material Symbols (rounded) glyph name per category; 'shuffle' = the All row.
+    const CAT_ICONS = {
+      'Work': 'work', 'Family': 'family_restroom', 'Friend Group': 'groups',
+      'Travel': 'flight', 'Just For Fun': 'celebration', 'College Days': 'school',
+      'Spicy': 'local_fire_department',
     };
     let activeCategory = null;            // null = draw from all NON-spicy categories
     let deckState = new Deck(generalCards);
@@ -582,11 +611,13 @@
     const cancelBtn = overlay.querySelector('.picker-cancel');
 
     // "All" row (clears the filter) + one tinted row per category.
+    // Each row leads with a rounded-rectangle badge holding a Material Symbol icon.
     function makeRow(label, cat, isAll) {
       const el = document.createElement('button');
       el.className = 'cat-row' + (isAll ? ' all' : '');
       el.dataset.cat = cat || '';
-      el.innerHTML = `<span>${label}</span><span class="check">✓</span>`;
+      const icon = isAll ? 'shuffle' : (CAT_ICONS[cat] || 'tag');
+      el.innerHTML = `<span class="cat-icon"><span class="material-symbols-rounded">${icon}</span></span><span class="cat-label">${label}</span><span class="check">✓</span>`;
       if (!isAll) {
         el.style.background = CAT_COLORS[cat] || '#555';
         if (cat === 'Friend Group') el.style.color = '#1a2545';
@@ -594,8 +625,7 @@
       pickerList.appendChild(el);
     }
     makeRow('All Categories', null, true);
-    // Spicy gets a chili so it reads as the "extra" opt-in category.
-    CATEGORIES.forEach(cat => makeRow(cat === SPICY ? `${cat} 🌶️` : cat, cat, false));
+    CATEGORIES.forEach(cat => makeRow(cat, cat, false));
 
     function markActiveRows() {
       [...pickerList.children].forEach(el =>
