@@ -154,6 +154,7 @@
     .card .face .badge[data-category="Friend Group"] { background: #F4C84A; color: #1a2545; }
     .card .face .badge[data-category="Travel"]       { background: #3CA39E; }
     .card .face .badge[data-category="Just For Fun"] { background: #E66A9E; }
+    .card .face .badge[data-category="TMI"]          { background: #1f1f24; }
     .card .face .prompt {
       align-self: center;
       margin: 0;
@@ -282,6 +283,8 @@
     /* Friend Group is the one light (yellow) tinted row, so darken its badge. */
     .cat-row[data-cat="Friend Group"] .cat-icon { background: rgba(26,37,69,0.14); }
     .cat-row.is-active { box-shadow: 0 0 0 3px var(--ink), 0 5px 14px rgba(0,0,0,0.2); }
+    /* TMI is near-black, so the navy active ring would vanish; use the brand red. */
+    .cat-row[data-cat="TMI"].is-active { box-shadow: 0 0 0 3px #E94B3C, 0 5px 14px rgba(0,0,0,0.2); }
     .cat-row .check {
       position: absolute; right: 16px; top: 50%;
       transform: translateY(-50%) scale(0);
@@ -297,6 +300,65 @@
       font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
       cursor: pointer;
     }
+
+    /* ---- TMI warning: a gate shown before the TMI deck is unlocked ---- */
+    .warn-overlay {
+      position: fixed; inset: 0;
+      z-index: 140; /* above the picker */
+      display: grid; place-items: center;
+      background: rgba(8,10,18,0);
+    }
+    .warn-overlay[hidden] { display: none; }
+    .warn-card {
+      width: min(82vw, 360px);
+      background: #1f1f24;
+      color: #f8efd9;
+      border-radius: 22px;
+      box-shadow: 0 26px 70px rgba(0,0,0,0.7), 0 0 0 1.5px rgba(248,239,217,0.14);
+      padding: 26px 22px 20px;
+      text-align: center;
+      will-change: transform, opacity;
+    }
+    .warn-kicker {
+      display: inline-grid; grid-auto-flow: column; align-items: center; gap: 6px;
+      font-size: 12px; letter-spacing: 0.30em; text-transform: uppercase;
+      font-weight: 800;
+      color: #E94B3C;
+      margin-bottom: 14px;
+    }
+    .warn-kicker .material-symbols-rounded {
+      font-size: 18px; line-height: 1;
+      font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
+    }
+    .warn-title {
+      margin: 0 0 10px;
+      font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+      font-weight: 400;
+      font-size: clamp(30px, 8vw, 38px);
+      line-height: 1.1;
+    }
+    .warn-title em { font-style: italic; color: #E94B3C; }
+    .warn-body {
+      margin: 0 0 22px;
+      font-size: 15px; line-height: 1.45;
+      color: rgba(248,239,217,0.78);
+    }
+    .warn-actions { display: flex; flex-direction: column; gap: 10px; }
+    .warn-btn {
+      border: none; border-radius: 15px;
+      padding: 14px 18px;
+      font-family: inherit;
+      font-weight: 800; font-size: 15px;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      cursor: pointer;
+      transition: transform .12s ease;
+    }
+    .warn-btn:active { transform: scale(0.97); }
+    .warn-btn.go { background: #E94B3C; color: #fff; box-shadow: 0 5px 14px rgba(0,0,0,0.3); }
+    .warn-btn.bail {
+      background: none; color: rgba(248,239,217,0.6);
+      box-shadow: inset 0 0 0 1.5px rgba(248,239,217,0.18);
+    }
   </style>
 </head>
 <body>
@@ -308,29 +370,35 @@
     const csvText = await fetch('questions.csv').then(r => r.text());
     const rows = parseCSV(csvText);
     const allCards = rows.map(r => ({ category: r.Category, question: r.Prompt }));
-    // Spicy is an opt-in-only category: its questions never appear in the
-    // general mix. You only see them by manually picking "Spicy" from the picker.
+    // Spicy and TMI are opt-in-only categories: their questions never appear in
+    // the general mix. You only see them by manually picking them from the picker.
+    // TMI additionally sits behind a "close friends only" warning (see below).
     const SPICY = 'Spicy';
-    const generalCards = allCards.filter(c => c.category !== SPICY);
-    // Order the picker with every regular category first and Spicy pinned last.
+    const TMI = 'TMI';
+    const OPT_IN = [SPICY, TMI];
+    const generalCards = allCards.filter(c => !OPT_IN.includes(c.category));
+    // Order the picker with every regular category first, then the opt-in
+    // categories pinned last in escalating order: Spicy, then TMI.
     const CATEGORIES = [...new Set(generalCards.map(c => c.category))];
-    if (allCards.some(c => c.category === SPICY)) CATEGORIES.push(SPICY);
+    for (const cat of OPT_IN) {
+      if (allCards.some(c => c.category === cat)) CATEGORIES.push(cat);
+    }
     const CAT_COLORS = {
       'Work': '#E94B3C', 'Family': '#2D4FA0', 'Friend Group': '#F4C84A',
       'Travel': '#3CA39E', 'Just For Fun': '#E66A9E', 'College Days': '#7B4BC4',
-      'Spicy': '#C2185B',
+      'Spicy': '#C2185B', 'TMI': '#1f1f24',
     };
     // Google Material Symbols (rounded) glyph name per category; 'shuffle' = the All row.
     const CAT_ICONS = {
       'Work': 'work', 'Family': 'family_restroom', 'Friend Group': 'groups',
       'Travel': 'flight', 'Just For Fun': 'celebration', 'College Days': 'school',
-      'Spicy': 'local_fire_department',
+      'Spicy': 'local_fire_department', 'TMI': 'warning',
     };
     let activeCategory = null;            // null = draw from all NON-spicy categories
     let deckState = new Deck(generalCards);
     function setCategory(cat) {
       activeCategory = cat;
-      // null = the general mix (Spicy excluded); a category = only that category.
+      // null = the general mix (opt-in categories excluded); a category = only that category.
       const pool = cat ? allCards.filter(c => c.category === cat) : generalCards;
       deckState = new Deck(pool);
       updateFab();
@@ -406,6 +474,8 @@
     let isAnimating = false;
     let revealed = null; // current face-up card element when one exists
     let pickerOpen = false; // category picker overlay is open
+    let warnOpen = false;   // TMI "close friends only" warning is open
+    let tmiAcknowledged = false; // player confirmed the TMI warning this visit
 
     function promoteStack() {
       // Every card moves up one layer. Layer 0 (currently flying off) is being handled separately.
@@ -425,7 +495,7 @@
     }
 
     function flipTopCard() {
-      if (isAnimating || revealed || pickerOpen) return;
+      if (isAnimating || revealed || pickerOpen || warnOpen) return;
       isAnimating = true;
       playDrawSound();
 
@@ -552,7 +622,7 @@
 
     let lastShake = 0;
     window.addEventListener('devicemotion', (e) => {
-      if (pickerOpen) return;
+      if (pickerOpen || warnOpen) return;
       const a = e.accelerationIncludingGravity || e.acceleration;
       if (!a) return;
       const mag = Math.hypot(a.x || 0, a.y || 0, a.z || 0);
@@ -661,10 +731,65 @@
       const row = e.target.closest('.cat-row');
       if (!row) return;
       const cat = row.dataset.cat ? row.dataset.cat : null;
+      if (cat === TMI && !tmiAcknowledged) {
+        // Don't switch decks yet: TMI is gated behind the close-friends warning.
+        gsap.fromTo(row, { scale: 1 }, { scale: 1.05, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.out', onComplete: () => openWarning() });
+        return;
+      }
       setCategory(cat);
       markActiveRows();
       gsap.fromTo(row, { scale: 1 }, { scale: 1.05, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.out', onComplete: () => closePicker() });
     });
+
+    /* ---------- TMI warning: close friends only ---------- */
+    // Shown the first time TMI is picked each visit. Confirming unlocks the deck
+    // for the rest of the session; backing out leaves the current deck untouched.
+    const warnOverlay = document.createElement('div');
+    warnOverlay.className = 'warn-overlay';
+    warnOverlay.hidden = true;
+    warnOverlay.innerHTML = `
+      <div class="warn-card" role="alertdialog" aria-labelledby="warn-title" aria-describedby="warn-body">
+        <div class="warn-kicker"><span class="material-symbols-rounded" aria-hidden="true">warning</span>Heads up</div>
+        <h2 class="warn-title" id="warn-title">This deck is for <em>close</em> friends only.</h2>
+        <p class="warn-body" id="warn-body">TMI goes deep: fights, secrets, regrets, and things you'd rather not have on the record. Play it with people you trust completely, not coworkers, new friends, or anyone who might bring it up later.</p>
+        <div class="warn-actions">
+          <button class="warn-btn go">We're close. Deal it.</button>
+          <button class="warn-btn bail">Not tonight</button>
+        </div>
+      </div>`;
+    document.body.appendChild(warnOverlay);
+    const warnCard = warnOverlay.querySelector('.warn-card');
+    const warnGo = warnOverlay.querySelector('.warn-btn.go');
+    const warnBail = warnOverlay.querySelector('.warn-btn.bail');
+
+    const WARN_HIDDEN = { scale: 0.86, autoAlpha: 0, y: 24 };
+    const WARN_SHOWN = { scale: 1, autoAlpha: 1, y: 0 };
+
+    function openWarning() {
+      if (warnOpen) return;
+      warnOpen = true;
+      warnOverlay.hidden = false;
+      gsap.killTweensOf([warnOverlay, warnCard]);
+      gsap.to(warnOverlay, { backgroundColor: 'rgba(8,10,18,0.75)', duration: 0.3, ease: 'power2.out' });
+      gsap.fromTo(warnCard, WARN_HIDDEN, { ...WARN_SHOWN, duration: 0.5, ease: 'back.out(1.4)' });
+    }
+
+    function closeWarning(onDone) {
+      if (!warnOpen) return;
+      warnOpen = false;
+      gsap.killTweensOf([warnOverlay, warnCard]);
+      gsap.to(warnOverlay, { backgroundColor: 'rgba(8,10,18,0)', duration: 0.28, ease: 'power2.in' });
+      gsap.to(warnCard, { ...WARN_HIDDEN, duration: 0.32, ease: 'power2.in', onComplete: () => { warnOverlay.hidden = true; if (onDone) onDone(); } });
+    }
+
+    warnGo.addEventListener('click', () => {
+      tmiAcknowledged = true;
+      setCategory(TMI);
+      markActiveRows();
+      closeWarning(() => closePicker());
+    });
+    warnBail.addEventListener('click', () => closeWarning());
+    warnOverlay.addEventListener('click', (e) => { if (e.target === warnOverlay) closeWarning(); }); // backdrop tap = bail
 
     updateFab();
   </script>
